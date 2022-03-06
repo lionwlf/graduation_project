@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+message login_request{
+    fixed32 id = 1;
+    fixed32 pwd = 2;
+}
+
+message login_reply{
+    fixed32 errno_id = 1;
+    fixed32 money = 2;
+}
+
+message regists_request{
+    fixed32 id = 1;
+    fixed32 pwd = 2;
+    fixed64 phone_num = 3;
+}
+
+message regists_reply{
+    fixed32 errno_id = 1;
+}
+
+message loginout_request{
+    fixed32 id = 1;
+}
+
+message recharge_request{
+    fixed32 id = 1;
+    fixed32 money = 2;
+    fixed32 serial_num = 3;
+}
+
+message recharge_reply{
+    fixed32 errno_id = 1;
+}
+
+message findpwd_request{
+    fixed32 id = 1;
+    fixed32 phone_num = 2;
+}
+
+message findpwd_reply {
+    fixed32 errno_id = 1;
+    fixed32 pwd = 2;
+}
+
+message searchtickets_request{
+    fixed32 st_ar_place = 1;
+    fixed32 day = 2;
+    fixed32 id = 3;
+    fixed32 serial_num = 4;
+}
+
+message Pick_msg{
+    fixed32 cid = 1;
+    fixed32 st_ar_place = 2;
+    fixed32 st_ar_time = 3;
+    fixed32 price = 4;
+    fixed32 siteS_total = 5;
+    fixed32 siteC_total = 6;
+    fixed32 site_C6 = 7;
+}
+
+message searchtickets_reply{
+    fixed32 errno_id = 1;
+    repeated Pick_msg tickets= 2;
+}
+
+message bookticket_request{
+    fixed32 id = 1;
+    fixed32 cid = 2;
+    fixed32 site = 3;
+    fixed32 price = 4;
+    fixed32 serial_num = 5;
+}
+
+message bookticket_reply{
+    fixed32 errno_id = 1;
+    fixed32 site = 2;
+}
+
+message cancelticket_request{
+    fixed32 id = 1;
+    fixed32 cid = 2;
+    fixed32 site = 3;
+    fixed32 serial_num = 4;
+    fixed32 room = 5;
+}
+
+message cancelticket_reply{
+    fixed32 errno_id = 1;
+}
+
+message personbook_request{
+    fixed32 id = 1;
+    fixed32 serial_num = 2;
+}
+
+message Pick_msg2{
+    fixed32 cid = 1;
+    fixed32 st_ar_place = 2;
+    fixed32 day = 3;
+    fixed32 st_ar_time = 4;
+    fixed32 price = 5;
+    fixed32 state = 6;
+    fixed32 room = 7;
+    fixed64 site = 8;
+}
+
+message personbook_reply{
+    fixed32 errno_id = 1;
+    repeated Pick_msg2 tickets = 2;
+}
+
+message citymodel_request{
+    fixed32 id = 1;
+    fixed32 serial_num = 2;
+}
+
+message City{
+    fixed32 city_num = 1;
+    bytes city_name = 2;
+    fixed64 rim = 3;
+}
+
+message citymodel{
+    repeated City cities = 1;   //事先存好
+}
+
+message citymodel_reply{
+    string msg = 1;
+}
