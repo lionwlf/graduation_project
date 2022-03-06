@@ -1,0 +1,4 @@
+3.6: 1.setup container env  2.set up github env
+3.11:test login/regiest/find pwd/recharge by myself
+3.12:test them with client
+
