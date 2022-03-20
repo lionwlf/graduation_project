@@ -12,11 +12,11 @@ Redis::~Redis()
     }
 }
 
-bool Redis::connect(int port)
+bool Redis::connect(int p)
 {
     const char *hostname = "127.0.0.1";
 
-    int port = port;
+    int port = p;
 
     struct timeval timeout = {1, 500000}; // 1.5 seconds
 

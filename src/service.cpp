@@ -102,6 +102,8 @@ void Service::login(const TcpConnectionPtr &conn, string s, Timestamp time)
         login_reply reply;
         int msg;
 
+        Redis _redis;   //使用短链接，结束一个函数之后自动销毁，没必要保持长连接，一个用户又不会说一直在访问数据库
+
         // just one handle? or like the mysql's roll trick is better? or make a pool?
         // you should make a test
         if (!_redis.connect(6379))
@@ -213,9 +215,9 @@ void Service::loginout(const TcpConnectionPtr &conn, string s, Timestamp time)
     if (loginout_.ParseFromString(s))
     {
         int id = loginout_.id();
-
+        Redis _redis;
         _redis.get_Command_i("del id" + id);
-
+       
         {
             lock_guard<mutex> lock(_mutex);
             connMap.erase(id);
@@ -246,17 +248,17 @@ void Service::recharge(const TcpConnectionPtr &conn, string s, Timestamp time)
 
             MySQL mysql;
             mysql.connect();
-            MYSQL_RES *res = mysql.query(sql);
-            if (res != nullptr)
-            {
+                MYSQL_RES *res = mysql.query(sql);
+                if (res != nullptr)
+                {
                 MYSQL_ROW row = mysql_fetch_row(res);
                 if (row)
                 {
                     reply.set_errno_id(stoi(row[0]));
                 }
-            }
-            string response = "14" + reply.SerializeAsString();
-            conn->send(response);
+                }
+                string response = "14" + reply.SerializeAsString();
+                conn->send(response);
         }
     }
     else
@@ -307,6 +309,7 @@ void Service::findpwd(const TcpConnectionPtr &conn, string s, Timestamp time)
     }
 }
 
+//暂时不延伸地点
 void Service::searchpick(const TcpConnectionPtr &conn, string s, Timestamp time)
 {
     searchtickets_request st_;
@@ -336,27 +339,33 @@ void Service::searchpick(const TcpConnectionPtr &conn, string s, Timestamp time)
             Redis _redis;
             _redis.connect(port);
 
-
-            int cids = _redis.get_Command_vs(vs,sql);
+            int cids = _redis.get_Command_vs(vs,sql);   //获得所有车次
 
             searchtickets_reply reply;
             vector<string> msg;
             for(string s:vs){
                 msg.push_back(s);
-                _redis.get_Command_s(msg,"get "+ s);
+                _redis.get_Command_vs(msg,"get "+ s);
             }
 
-            int a = msg.size();
-            for(int i = 0;i<a;i++){
+            int i = msg.size();
+            for(int a = 0;a<i;){
                 Pick_msg* pmsg = reply.add_tickets();
                 //-------------------------
-                pmsg->set_cid(stoi(msg[a]));    //danger!!!
-                pmsg->set_s(stoi(msg[a+1] + msg[a+2] + msg[a+3] + msg[a+4] + msg[a+5]));
-                pmsg->set_c(stoi(msg[a+6] + msg[a+7] + msg[a+8] + msg[a+9] + msg[a+10]));
-                pmsg->set_st(stoi(msg[a+11]);
-                a+=11;
-            }
+                pmsg->set_cid(stoi(msg[a]));
+                // pmsg->set_st_ar_place();
+                pmsg->set_st_ar_time(stoi(msg[a+13]));
+                pmsg->set_tks_left(stoi(msg[a+1] + msg[a+2] + msg[a+3] + msg[a+4] + msg[a+5]) * 1000000 + stoi(msg[a+6] + msg[a+7] + msg[a+8] + msg[a+9] + msg[a+10]) * 100 + stoi(msg[a+11]));
+                pmsg->set_price(stoi(msg[a+12]));
 
+                //车票信息在 redis 中的存储方式：
+                /*
+                    1、地点 + 日期：存储所有来往车次
+                    2、车次：一等各列余票 + 二等各列余票 + +站票余票 + 价位 + 时间
+                */
+
+                a+=14;
+            }
             string response = "16" + reply.SerializeAsString();
             conn->send(response);
         }
@@ -384,10 +393,12 @@ void Service::bookpick_S(const TcpConnectionPtr &conn, string s, Timestamp time)
             Redis redis_w;
             redis_w.connect(6379);
             int token = redis_w.get_Command_i("get " + token_key);
+            bookticket_reply reply;
+
             if (token == -1)
             {
                 int hope_col = bookpick_.hope_col();
-                time tm = time(NULL);
+                std::time_t tm = std::time(0);
                 string cid_col = to_string(cid) + "S" + to_string(hope_col);
                 string cid_col_lc = cid_col + "lc ";
 
@@ -403,7 +414,7 @@ void Service::bookpick_S(const TcpConnectionPtr &conn, string s, Timestamp time)
                 int pick = redis_w.get_Command_i("get " + cid_col) - 1;
                 if (pick > 0)
                 { // not last pick
-                    redis_w.get_Command_i("set " + cid_col + " " + pick);
+                    redis_w.get_Command_i("set " + cid_col + " " + to_string(pick));
                     msg = 1; // temp msg_id
                 }
                 else if (pick == -2)
@@ -422,7 +433,6 @@ void Service::bookpick_S(const TcpConnectionPtr &conn, string s, Timestamp time)
                     redis_w.get_Command_i("del " + cid_col_lc);
                 }
 
-                bookticket_reply reply;
                 // then,write to mysql(later will use MQ)
                 if (msg)
                 {
@@ -549,16 +559,20 @@ void Service::bookpick_C(const TcpConnectionPtr &conn, string s, Timestamp time)
             redis_w.connect(6379);
 
             int token = redis_w.get_Command_i("get " + token_key);
+            
+            bookticket_reply reply;
             if (token == -1)
             {
 
-                time tm = time(NULL);
+                std::time_t tm = std::time(0);
                 int hope_col = bookpick_.hope_col();
 
                 string cid_col = to_string(cid) + "C" + to_string(hope_col);
                 string cid_col_lc = cid_col + "lc ";
 
                 string sql = "set " + cid_col_lc + to_string(tm) + " EX 1 NX"; // one second period time
+                char sql1[40];
+                char sql2[64];
 
                 // before write,should read first!!!
 
@@ -570,7 +584,7 @@ void Service::bookpick_C(const TcpConnectionPtr &conn, string s, Timestamp time)
                 int pick = redis_w.get_Command_i("get " + cid_col) - 1;
                 if (pick > 0)
                 { // not last pick
-                    redis_w.get_Command_i("set " + cid_col + " " + pick);
+                    redis_w.get_Command_i("set " + cid_col + " " + to_string(pick));
                     msg = 1; // temp msg_id
                 }
                 else if (pick == -2)
@@ -588,8 +602,6 @@ void Service::bookpick_C(const TcpConnectionPtr &conn, string s, Timestamp time)
                 {
                     redis_w.get_Command_i("del " + cid_col_lc);
                 }
-
-                bookticket_reply reply;
 
                 if (msg)
                 {
@@ -714,9 +726,11 @@ void Service::bookpick_ST(const TcpConnectionPtr &conn, string s, Timestamp time
             redis_w.connect(6379);
 
             int token = redis_w.get_Command_i("get " + token_key);
+            bookticket_reply reply;
+
             if (token == -1)
             {
-                time tm = time(NULL);
+                std::time_t tm = std::time(0);
 
                 string cid_col = to_string(cid) + "ST";
                 string cid_col_lc = cid_col + "lc ";
@@ -733,7 +747,7 @@ void Service::bookpick_ST(const TcpConnectionPtr &conn, string s, Timestamp time
                 int pick = redis_w.get_Command_i("get " + cid_col) - 1;
                 if (pick > 0)
                 { // not last pick
-                    redis_w.get_Command_i("set " + cid_col + " " + pick);
+                    redis_w.get_Command_i("set " + cid_col + " " + to_string(pick));
                     msg = 1; // temp msg_id
                 }
                 else if (pick == -2)
@@ -752,14 +766,10 @@ void Service::bookpick_ST(const TcpConnectionPtr &conn, string s, Timestamp time
                     redis_w.get_Command_i("del " + cid_col_lc);
                 }
 
-                bookticket_reply reply;
-
                 if (msg)
                 {
                     char sql1[42] = {}; // search weather can choose site
                     sprintf(sql1, "call bookticket_ST(%d,%d)", id, cid);
-
-                    bookticket_reply reply;
 
                     MySQL mysql;
                     if (mysql.connect())
@@ -943,50 +953,53 @@ void Service::personbook(const TcpConnectionPtr &conn, string s, Timestamp time)
 
 void Service::getcitymodel(const TcpConnectionPtr &conn, string s, Timestamp time)
 {
-    citymodel_request citymodel_;
-    if (citymodel_.ParseFromString(s))
-    {
-        int id = citymodel_.id();
-        int serial_num = citymodel_.serial_num();
+    cout<<"还没写"<<endl;
+    // citymodel_request citymodel_;
+    // if (citymodel_.ParseFromString(s))
+    // {
+    //     int id = citymodel_.id();
+    //     int serial_num = citymodel_.serial_num();
 
-        if (check_serialnum(id, serial_num))
-        {
-            citymodel_reply reply;
-            reply.set_msg(_redis.get_Command_s("get citymodel"));
-            string response = "22" + reply.SerializeAsString();
-            conn->send(response);
-        }
-    }
-    else
-    {
-        cout << __FILE__ << " " << __LINE__ << endl;
-    }
+    //     if (check_serialnum(id, serial_num))
+    //     {
+    //         citymodel_reply reply;
+    //         reply.set_msg(_redis.get_Command_s("get citymodel"));
+    //         string response = "22" + reply.SerializeAsString();
+    //         conn->send(response);
+    //     }
+    // }
+    // else
+    // {
+    //     cout << __FILE__ << " " << __LINE__ << endl;
+    // }
 }
 
 void Service::clientCloseException(const TcpConnectionPtr &conn)
 {
-    int id = 0;
-    {
-        lock_guard<mutex> lock(_mutex);
-        for (auto it = connMap.begin(); it != connMap.end(); it++)
-        {
-            if (it->second == conn)
-            {
-                id = it->first;
-                break;
-            }
-        }
-        connMap.erase(id);
-        slidewindowsMap.erase(id);
-    }
+    cout<<"还没写"<<endl;
+    // int id = 0;
+    // {
+    //     lock_guard<mutex> lock(_mutex);
+    //     for (auto it = connMap.begin(); it != connMap.end(); it++)
+    //     {
+    //         if (it->second == conn)
+    //         {
+    //             id = it->first;
+    //             break;
+    //         }
+    //     }
+    //     connMap.erase(id);
+    //     slidewindowsMap.erase(id);
+    // }
 
-    _redis.get_Command_i("del id" + id);
+    // _redis.get_Command_i("del id" + id);
 }
 
 void Service::reset()
 {
-    for (auto it = connMap.begin(); it != connMap.end(); it++)
-    {
-        _redis.get_Command_i("del id" + to_string(it->first));
-    }
+    cout<<"还没写"<<endl;
+    // for (auto it = connMap.begin(); it != connMap.end(); it++)
+    // {
+    //     _redis.get_Command_i("del id" + to_string(it->first));
+    // }
 }

@@ -1,130 +1,129 @@
 syntax = "proto3";
 
 message login_request{
-    fixed32 id = 1;
-    fixed32 pwd = 2;
+    int32 id = 1;
+    int32 pwd = 2;
 }
 
 message login_reply{
-    fixed32 errno_id = 1;
-    fixed32 money = 2;
+    int32 msg = 1;  
+    //既可存放errno_id，也可以存放money。
+    //对money做限制，用户money最多五位数，应该也没有那种钱多没处花的主
 }
 
 message regists_request{
-    fixed32 id = 1;
-    fixed32 pwd = 2;
-    fixed64 phone_num = 3;
+    int32 pwd = 1;
+    int64 phone_num = 2;
 }
 
 message regists_reply{
-    fixed32 errno_id = 1;
+    int32 msg = 1;  //既可用于存放errno_id，也可用于存放id。
 }
 
 message loginout_request{
-    fixed32 id = 1;
+    int32 id = 1;
 }
 
 message recharge_request{
-    fixed32 id = 1;
-    fixed32 money = 2;
-    fixed32 serial_num = 3;
+    int32 id = 1;
+    int32 money = 2;
+    int32 serial_num = 3;
 }
 
 message recharge_reply{
-    fixed32 errno_id = 1;
+    bool errno_id = 1;  //false：没失败
+    //proto3中布尔值默认为值为fasle，因此当值为false时，序列化后不占用内存空间；当布尔值为true时，占用1个字节。
 }
 
 message findpwd_request{
-    fixed32 id = 1;
-    fixed32 phone_num = 2;
+    int32 id = 1;
+    int64 phone_num = 2;
+    int32 serial_num = 3;
 }
 
 message findpwd_reply {
-    fixed32 errno_id = 1;
-    fixed32 pwd = 2;
+    int32 msg = 1;  //可用于存放errno_id 和 pwd
 }
 
 message searchtickets_request{
-    fixed32 st_ar_place = 1;
-    fixed32 day = 2;
-    fixed32 id = 3;
-    fixed32 serial_num = 4;
+    int32 st_ar_place = 1;
+    int32 day = 2;
+    int32 id = 3;
+    int32 serial_num = 4;
 }
 
+/*
+    经慎重决定，将三类座位余票合一
+    XXX YYYY ZZ：XXX为一等票总余量, YYYY为普通票总余量，YY为站票总余量
+    指导思想：客户端只需要知道有多少余票就够了，至于怎么分布的，没有权限知道
+    之所以按这个顺序排，是因为一等票一般只要用两位数即可，全满才100张
+*/
 message Pick_msg{
-    fixed32 cid = 1;
-    fixed32 st_ar_place = 2;
-    fixed32 st_ar_time = 3;
-    fixed32 price = 4;
-    fixed32 siteS_total = 5;
-    fixed32 siteC_total = 6;
-    fixed32 site_C6 = 7;
+    int32 cid = 1;
+    int32 st_ar_place = 2;
+    int32 st_ar_time = 3;
+    int32 price = 4;
+    int32 tks_left = 5;
 }
 
 message searchtickets_reply{
-    fixed32 errno_id = 1;
-    repeated Pick_msg tickets= 2;
+    repeated Pick_msg tickets= 1;
 }
 
 message bookticket_request{
-    fixed32 id = 1;
-    fixed32 cid = 2;
-    fixed32 site = 3;
-    fixed32 price = 4;
-    fixed32 serial_num = 5;
+    int32 id = 1;
+    int32 cid = 2;
+    int32 hope_col = 3;
+    int32 serial_num = 4;
 }
 
 message bookticket_reply{
-    fixed32 errno_id = 1;
-    fixed32 site = 2;
+    int32 msg = 1;  //既可用于存放errno_id，也可用于存放site
+    //由于site是六位数，所以70W以下的六位数被征用
 }
 
+/*
+room：车厢号
+0：站票
+1：一等座
+2~end：普通座
+*/
 message cancelticket_request{
-    fixed32 id = 1;
-    fixed32 cid = 2;
-    fixed32 site = 3;
-    fixed32 serial_num = 4;
-    fixed32 room = 5;
+    int32 id = 1;
+    int32 cid = 2;
+    int32 site = 3;
+    int32 serial_num = 4;
+    int32 room = 5;
 }
 
 message cancelticket_reply{
-    fixed32 errno_id = 1;
+    int32 errno_id = 1; 
+    //这里的errno_id，可能是超过最大次数已无法退订的意思，所以不用bool
 }
 
 message personbook_request{
-    fixed32 id = 1;
-    fixed32 serial_num = 2;
+    int32 id = 1;
+    int32 serial_num = 2;
 }
 
 message Pick_msg2{
-    fixed32 cid = 1;
-    fixed32 st_ar_place = 2;
-    fixed32 day = 3;
-    fixed32 st_ar_time = 4;
-    fixed32 price = 5;
-    fixed32 state = 6;
-    fixed32 room = 7;
-    fixed64 site = 8;
+    int32 cid = 1;
+    int32 st_ar_place = 2;
+    int32 day = 3;
+    int32 st_ar_time = 4;
+    int32 price = 5;
+    int32 site = 6;
+    bool iscancel = 7;  //false：没有退订
 }
 
 message personbook_reply{
-    fixed32 errno_id = 1;
+    bool errno_id = 1;  //false：获取用户订票信息
     repeated Pick_msg2 tickets = 2;
 }
 
 message citymodel_request{
-    fixed32 id = 1;
-    fixed32 serial_num = 2;
-}
-
-message City{
-    fixed32 city_num = 1;
-    bytes city_name = 2;
-    fixed64 rim = 3;
-}
-
-message citymodel{
-    repeated City cities = 1;   //事先存好
+    int32 id = 1;
+    int32 serial_num = 2;
 }
 
 message citymodel_reply{
