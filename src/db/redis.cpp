@@ -99,3 +99,11 @@ int Redis::get_Command_vs(vector<string>& res,string command){
         return num;
     } 
 }
+
+/*
+1、只要提交了请求，就会响应
+2、设置上次响应时间，如果二次响应，则触发比对
+3、若时长为2s之内二次操作，则断开连接
+4、不论时长为何，皆更新操作
+5、哈希表以 IP 转数字为键，时间为值
+*/

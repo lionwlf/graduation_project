@@ -1,12 +1,27 @@
 #include <functional>
 #include <string>
+#include <time.h>
+#include <math.h>
 
 #include "server.h"
 #include "service.h"
 
 using namespace std;
 using namespace placeholders;
-        
+
+//将 ip 转数字
+int isplit(string str){
+    int i = 3,pos = 0,num = 0;
+    while(i){
+        pos = str.find('.');
+        num = pow(10,pos-1)*num + stoi(str.substr(0,pos-1));
+        str = str.substr(pos);
+        i--;
+    }
+    num = pow(10,str.size())*num + stoi(str);
+    return num;
+}
+
 Server::Server(EventLoop *loop,const InetAddress &listenAddr,const string &nameArg)
     : _server(loop, listenAddr, nameArg),
     _loop(loop)
@@ -26,7 +41,33 @@ void Server::start()
     _server.start();
 }
 
+bool Server::flow_control(const TcpConnectionPtr &conn){
+    int ip = isplit(conn->peerAddress().toIp());
+    
+    //不是第一次请求咯
+    time_t tm = time(NULL);
+    if(flow_control_table.find(ip) != flow_control_table.end()){
+        if(tm - flow_control_table[ip] >2){
+            flow_control_table[ip] = tm;
+            return true;
+        }
+        else{
+            //如果要将 ip 加入黑名单，但是没必要，其实这种事情本来应该是路由器来做的
+            return false;
+        }
+    }
+    else{
+        flow_control_table[ip] = tm;
+        return true;
+    }
+}
+
 void Server::onMessage(const TcpConnectionPtr &conn, Buffer *buff, Timestamp time){
+    // 先做流量控制吧
+    if(!flow_control(conn)){
+        return;
+    }
+
     string buf = buff->retrieveAllAsString();
     int msgid = stoi(buf.substr(0,2));
 
@@ -45,6 +86,7 @@ void Server::onConnection(const TcpConnectionPtr &conn){
         conn->shutdown();
     }
     else{
+        cout<<"新链接ip："<< conn->peerAddress().toIp()<<endl;
         cout<<"new connection"<<endl;
     }
 }

@@ -5,6 +5,7 @@
 #include<muduo/net/EventLoop.h>
 
 #include<iostream>
+#include<unordered_map>
 
 using namespace std;
 using namespace muduo;
@@ -22,6 +23,9 @@ public:
     void start();
 
 private:
+    unordered_map<int,int> flow_control_table;
+    bool flow_control(const TcpConnectionPtr &conn);
+    
     void onConnection(const TcpConnectionPtr& conn);
     void onMessage(const TcpConnectionPtr& conn,Buffer* buff,Timestamp time);
 };

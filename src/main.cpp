@@ -21,7 +21,7 @@ int main(int argc, char **argv){
 
     string sip = "192.168.190.133";
     const char* ip = sip.c_str();
-    uint16_t port = 8888;
+    uint16_t port = 8000;
 
     //捕捉 Ctrl+C 信号
     signal(SIGINT,resetHandler);
