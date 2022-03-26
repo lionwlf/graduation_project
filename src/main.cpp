@@ -11,17 +11,17 @@ void resetHandler(int){
 }
 
 int main(int argc, char **argv){
-    // if (argc < 3){
-    //     cerr << "command invalid! example: ./ChatServer 127.0.0.1 6000" << endl;
-    //     exit(-1);
-    // }
+    if (argc < 3){
+        cerr << "command invalid! example: ./ChatServer 127.0.0.1 6000" << endl;
+        exit(-1);
+    }
 
-    // char *ip = argv[1];
-    // uint16_t port = atoi(argv[2]);
+    char *ip = argv[1];
+    uint16_t port = atoi(argv[2]);
 
-    string sip = "192.168.190.133";
-    const char* ip = sip.c_str();
-    uint16_t port = 8000;
+    // string sip = "192.168.190.133";
+    // const char* ip = sip.c_str();
+    // uint16_t port = 8000;
 
     //捕捉 Ctrl+C 信号
     signal(SIGINT,resetHandler);
