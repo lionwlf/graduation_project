@@ -10,13 +10,18 @@ using namespace std;
 using namespace placeholders;
 
 //将 ip 转数字
-int isplit(string str){
-    int i = 3,pos = 0,num = 0;
+long isplit(string str){
+    int i = 3,pos = 0;
+    long num = 0;
     while(i){
+        cout<<str<<endl;
         pos = str.find('.');
-        num = pow(10,pos-1)*num + stoi(str.substr(0,pos-1));
-        str = str.substr(pos);
+        cout<<pos<<endl;
+        cout<<str.substr(0,pos)<<endl;
+        num = pow(10,pos)*num + stoi(str.substr(0,pos));
+        str = str.substr(pos+1);
         i--;
+        cout<<num<<endl;
     }
     num = pow(10,str.size())*num + stoi(str);
     return num;
@@ -42,7 +47,7 @@ void Server::start()
 }
 
 bool Server::flow_control(const TcpConnectionPtr &conn){
-    int ip = isplit(conn->peerAddress().toIp());
+    long ip = isplit(conn->peerAddress().toIp());
     
     //不是第一次请求咯
     time_t tm = time(NULL);

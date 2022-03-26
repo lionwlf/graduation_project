@@ -23,7 +23,7 @@ public:
     void start();
 
 private:
-    unordered_map<int,int> flow_control_table;
+    unordered_map<long,int> flow_control_table;
     bool flow_control(const TcpConnectionPtr &conn);
     
     void onConnection(const TcpConnectionPtr& conn);
